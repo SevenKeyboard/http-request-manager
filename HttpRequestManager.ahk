@@ -11,7 +11,7 @@ class VersionManager_HttpRequestManager
     static _ := VersionManager_HttpRequestManager._init()
     _init()    {
         global
-        HTTPREQUESTMANAGER_VERSION := "1.0.0"
+        HTTPREQUESTMANAGER_VERSION := "1.0.1"
     }
 }
 class HttpRequestManager
@@ -104,7 +104,21 @@ class HttpRequestManager
             ,VARIANT_FALSE := 0
         critical % format("{2}", prevIC := A_IsCritical, "On")
         req := this._reqList[reqIndex]
-        succeeded := req.waitForResponse(0)
+        try succeeded := req.waitForResponse(0)
+        catch e    {
+            fn := this._getRequestMetaValue(reqIndex, "asyncTimerId")
+            setTimer % fn, % "Delete"
+            callback := this._getRequestMetaValue(reqIndex, "asyncCallback")
+            this._resetAsyncMeta(reqIndex)
+            this._setRequestRunning(reqIndex, false)
+            try  {
+                if (callback)
+                    callback.call(false)
+            }  finally  {
+                critical % prevIC
+            }
+            return
+        }
         switch (succeeded)
         {
             case VARIANT_FALSE: ;  Either waiting for a response or already timed out.
